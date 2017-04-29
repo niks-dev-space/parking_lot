@@ -13,81 +13,91 @@ import com.gojek.exceptions.SlotIsNotYetOccupied;
 
 public class SlotAllocator {
 
-	private final PriorityQueue<Slot> freeSlots;
-	private final Map<Integer, Slot> occupiedSlots; // slotNumber -> slot
-	private final Map<String, List<Slot>> colorsToSlots;
-	private final Map<String, Slot> regToSlot;
+    private static class SlotAllocatorHolder{
+        public static SlotAllocator allocator = new SlotAllocator();
+    }
+    
+    public static SlotAllocator getInstance(){
+        return SlotAllocatorHolder.allocator;
+    }
 
-	public SlotAllocator() {
-		this.freeSlots = new PriorityQueue<Slot>();
-		this.occupiedSlots = new HashMap<Integer, Slot>();
-		this.colorsToSlots = new HashMap<String, List<Slot>>();
-		this.regToSlot = new HashMap<String, Slot>();
-	}
+    private final PriorityQueue<Slot> freeSlots;
+    private final Map<Integer, Slot> occupiedSlots; // slotNumber -> slot
+    private final Map<String, List<Slot>> colorsToSlots;
+    private final Map<String, Slot> regToSlot;
 
-	public void createSlots(int numberOfSlots) {
-		for (int i = 1; i <= numberOfSlots; i++) {
-			freeSlots.add(new Slot(i));
-		}
-	}
+    public SlotAllocator() {
+        this.freeSlots = new PriorityQueue<>();
+        this.occupiedSlots = new HashMap<>();
+        this.colorsToSlots = new HashMap<>();
+        this.regToSlot = new HashMap<>();
+    }
 
-	public Slot park(Car car) throws NoFreeSlotsAvailable {
-		Slot slot = freeSlots.poll();
+    public void createSlots(int numberOfSlots) {
+        for (int i = 1; i <= numberOfSlots; i++) {
+            freeSlots.add(new Slot(i));
+        }
+    }
 
-		if (slot == null) {
-			throw new NoFreeSlotsAvailable("all slots all occupied");
-		}
+    public Slot park(Car car) throws NoFreeSlotsAvailable {
+        Slot slot = freeSlots.poll();
 
-		slot.setCar(car);
-		slot.setIsFree(false);
+        if (slot == null) {
+            throw new NoFreeSlotsAvailable("all slots all occupied");
+        }
 
-		if (!colorsToSlots.containsKey(car.getColor())) {
-			colorsToSlots.put(car.getColor(), new LinkedList<Slot>());
-		}
-		colorsToSlots.get(car.getColor()).add(slot);
+        slot.setCar(car);
+        slot.setIsFree(false);
 
-		regToSlot.put(car.getRegistrationNumber(), slot);
+        if (!colorsToSlots.containsKey(car.getColor())) {
+            colorsToSlots.put(car.getColor(), new LinkedList<>());
+        }
+        colorsToSlots.get(car.getColor()).add(slot);
 
-		occupiedSlots.put(slot.getSlotNumber(), slot);
-		
-		return slot;
-	}
+        regToSlot.put(car.getRegistrationNumber(), slot);
 
-	public Car leave(Integer slotNumber) throws SlotIsNotYetOccupied {
-		Slot slot = occupiedSlots.get(slotNumber);
-		if (slot == null) {
-			throw new SlotIsNotYetOccupied("slot is currently free");
-		}
+        occupiedSlots.put(slot.getSlotNumber(), slot);
 
-		Car car = slot.getCar();
+        return slot;
+    }
 
-		occupiedSlots.remove(slotNumber);
-		slot.setCar(null);
-		slot.setIsFree(true);
-		freeSlots.add(slot);
+    public Car leave(Integer slotNumber) throws SlotIsNotYetOccupied {
+        Slot slot = occupiedSlots.get(slotNumber);
+        if (slot == null) {
+            throw new SlotIsNotYetOccupied("slot is currently free");
+        }
 
-		if (colorsToSlots.containsKey(car.getColor())) {
-			colorsToSlots.get(car.getColor()).remove(slot);
-		}
+        Car car = slot.getCar();
 
-		regToSlot.remove(car.getRegistrationNumber());
+        occupiedSlots.remove(slotNumber);
+        slot.setCar(null);
+        slot.setIsFree(true);
+        freeSlots.add(slot);
 
-		return car;
-	}
+        if (colorsToSlots.containsKey(car.getColor())) {
+            colorsToSlots.get(car.getColor()).remove(slot);
+        }
 
-	public List<Slot> getSlots(String color) {
-		return colorsToSlots.get(color);
-	}
+        regToSlot.remove(car.getRegistrationNumber());
 
-	public Slot getSlot(String registrationNumber) {
-		return regToSlot.get(registrationNumber);
-	}
+        return car;
+    }
 
-	public void status() {
-		System.out.println("Slot Number \t Registration Number \t Color");
-		for (Integer slotNumber : occupiedSlots.keySet()) {
-			Car car = occupiedSlots.get(slotNumber).getCar();
-			System.out.println(slotNumber + "\t" + car.getRegistrationNumber() + "\t" + car.getColor());
-		}
-	}
+    public List<Slot> getSlots(String color) {
+        return colorsToSlots.get(color);
+    }
+
+    public Slot getSlot(String registrationNumber) {
+        return regToSlot.get(registrationNumber);
+    }
+
+    public String status() {
+        StringBuilder buffer = new StringBuilder();
+        buffer.append("Slot Number \t Registration Number \t Color");
+        for (Integer slotNumber : occupiedSlots.keySet()) {
+            Car car = occupiedSlots.get(slotNumber).getCar();
+            buffer.append("\n" + slotNumber + "\t" + car.getRegistrationNumber() + "\t" + car.getColor());
+        }
+        return buffer.toString();
+    }
 }
